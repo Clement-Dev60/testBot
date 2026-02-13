@@ -1,7 +1,7 @@
-import discord
+import discord # type: ignore
 import os
-from dotenv import load_dotenv
-from discord.ext import commands
+from dotenv import load_dotenv # type: ignore
+from discord.ext import commands # type: ignore
 from datetime import timedelta
 import random
 
