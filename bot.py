@@ -1,15 +1,47 @@
-import discord # type: ignore
+import discord  # type: ignore
 import os
-from dotenv import load_dotenv # type: ignore
-from discord.ext import commands # type: ignore
+from dotenv import load_dotenv  # type: ignore
+from discord.ext import commands  # type: ignore
 from datetime import timedelta
 import random
+import json
+from discord import app_commands  # type: ignore
+
 
 load_dotenv()
 
 print("Lancement du bot...")
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+
+ZOU_MESSAGES = "zou_messages.json"
+
+FILM = "films.json"
+
+
+def load_films():
+    with open(FILM, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_films(films):
+    with open(FILM, "w", encoding="utf-8") as f:
+        json.dump(films, f, ensure_ascii=False, indent=4)
+
+
+def load_messages():
+    with open(ZOU_MESSAGES, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_messages(messages):
+    with open(ZOU_MESSAGES, "w", encoding="utf-8") as f:
+        json.dump(messages, f, ensure_ascii=False, indent=4)
+
+
+messages = load_messages()
+
+films = load_films()
 
 blagues = [
     "Je tiens beaucoup à ma montre, c'est mon grand-père qui me l'a vendue sur son lit de mort.",
@@ -59,6 +91,7 @@ async def on_ready():
         synced = await bot.tree.sync()
         print(f"Commandes slash synchronisées : {len(synced)}")
         print(f"Nombres de blagues disponibles : {len(blagues)}")
+        print(f"Nombre de messages chargés : {len(messages)}")
     except Exception as e:
         print(e)
 
@@ -130,11 +163,125 @@ async def warnguy(interaction: discord.Interaction, member: discord.Member):
     await member.send("Tu as reçu une alerte")
 
 
+@bot.tree.command(name="zou", description="Envoyer une pensée positive à Zheum")
+@app_commands.checks.cooldown(
+    1, 3600, key=lambda i: i.user.id
+)  # 1 fois toutes les heures
+async def zou(interaction: discord.Interaction):
+    member = interaction.guild.get_member(334307994940735500)
+    author = interaction.user
+
+    if not member:
+        await interaction.response.send_message("Membre introuvable.", ephemeral=True)
+        return
+
+    compliment = random.choice(messages)
+
+    await member.send(compliment)
+    await author.send(f"Pensée positive envoyé ! {compliment}")
+    await interaction.response.send_message(
+        f"Pensée positive envoyé ! {compliment}", ephemeral=True
+    )
+
+
+@zou.error
+async def zou_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.CommandOnCooldown):
+        await interaction.response.send_message(
+            f"⏳ Attends encore {round(error.retry_after)} secondes.", ephemeral=True
+        )
+
+
+@bot.tree.command(name="addzou", description="Ajouter une pensée positive")
+@app_commands.describe(message="La pensée positive à ajouter")
+@app_commands.checks.has_permissions(administrator=True)
+async def addzou(interaction: discord.Interaction, message: str):
+
+    global messages
+    if message in messages:
+        await interaction.response.send_message(
+            "⚠️ Ce message existe déjà.", ephemeral=True
+        )
+        return
+
+    messages.append(message)
+    save_messages(messages)
+
+    await interaction.response.send_message(
+        "✅ Pensée positive ajoutée avec succès !", ephemeral=True
+    )
+
+
+@addzou.error
+async def addzou_error(interaction: discord.Interaction, error):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message(
+            "❌ Tu n'as pas la permission d'utiliser cette commande.", ephemeral=True
+        )
+
+
 @bot.tree.command(name="github", description="Affiche mon github")
 async def github(interaction: discord.Interaction):
     await interaction.response.send_message(
         "Voici le lien de mon github : https://github.com/Clement-Dev60"
     )
 
+
+@bot.tree.command(name="film", description="Choisir un film au hasard dans la liste")
+async def film(interaction: discord.Interaction):
+
+    film = random.choice(films)
+
+    await interaction.response.send_message(film)
+
+    films.remove(film)
+    with open("films.json", "w", encoding="utf-8") as f:
+        json.dump(films, f, indent=4, ensure_ascii=False)
+
+
+@film.error
+async def film(interaction: discord.Interaction, error):
+    if len(films) == 0:
+        await interaction.response.send_message("La liste est vide", ephemeral=True)
+
+
+@bot.tree.command(name="addfilm", description="Ajouter un film")
+@app_commands.describe(film="Le film à ajouter")
+@app_commands.checks.has_permissions(administrator=True)
+async def addfilm(interaction: discord.Interaction, film: str):
+
+    global films
+    if film in films:
+        await interaction.response.send_message(
+            "⚠️ Ce film existe déjà.", ephemeral=True
+        )
+        return
+
+    films.append(film)
+    save_films(films)
+
+    await interaction.response.send_message(
+        "✅ Film ajoutée avec succès !", ephemeral=True
+    )
+
+
+@bot.tree.command(name="listfilm", description="Afficher la liste de tous les films")
+async def listfilm(interaction: discord.Interaction):
+    global films
+    if not films :
+        await interaction.response.send_message("⚠️ La liste est vide", ephemeral=True)
+        return
+    
+    listfilm = ""
+    for film in films:
+        listfilm += f"- {film}\n"
+        
+    await interaction.response.send_message(listfilm)
+
+@listfilm.error
+async def listfilm_error(interaction: discord.Interaction, error):
+    if len(films) == 0:
+        await interaction.response.send_message("⚠️ La liste est vide", ephemeral=True)
+        return
 
 bot.run(os.getenv("DISCORD_TOKEN"))
