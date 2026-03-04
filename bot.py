@@ -1,11 +1,14 @@
 import discord  # type: ignore
 import os
 from dotenv import load_dotenv  # type: ignore
-from discord.ext import commands  # type: ignore
+from discord.ext import commands, tasks  # type: ignore
 from datetime import timedelta
 import random
 import json
 from discord import app_commands  # type: ignore
+from datetime import datetime
+import asyncio
+from discord.ui import View, Button, Modal, TextInput  # type: ignore
 
 
 load_dotenv()
@@ -13,10 +16,44 @@ load_dotenv()
 print("Lancement du bot...")
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+intents = discord.Intents.default()
+intents.members = True
+
+
+class ModifierRappelModal(Modal):
+    def __init__(self, index):
+        super().__init__(title=f"Modifier le rappel {index+1}")
+        self.index = index
+        self.input = TextInput(
+            label="Nouveau message du rappel",
+            style=discord.TextStyle.paragraph,
+            placeholder="Tape ton nouveau rappel ici...",
+            max_length=2000,
+        )
+        self.add_item(self.input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        rappels[self.index]["message"] = self.input.value
+        save_rappels(rappels)
+        await interaction.response.send_message(
+            f"✅ Rappel {self.index+1} mis à jour !", ephemeral=True
+        )
+
+
+statuses = [
+    ("veille sur Gotham 🦇", discord.ActivityType.watching),
+    ("protège la ville la nuit 🌃", discord.ActivityType.playing),
+    ("traque le Joker 🤡", discord.ActivityType.competing),
+    ("guette le Bat-Signal 🔦", discord.ActivityType.listening),
+]
 
 ZOU_MESSAGES = "zou_messages.json"
 
 FILM = "films.json"
+
+BLAGUES = "blagues.json"
+
+RAPPELS_FILE = "rappels.json"
 
 
 def load_films():
@@ -39,47 +76,36 @@ def save_messages(messages):
         json.dump(messages, f, ensure_ascii=False, indent=4)
 
 
+def load_blagues():
+    with open(BLAGUES, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_blagues(blagues):
+    with open(BLAGUES, "w", encoding="utf-8") as f:
+        json.dump(blagues, f, ensure_ascii=False, indent=4)
+
+
+def load_rappels():
+    try:
+        with open(RAPPELS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+
+def save_rappels(rappels):
+    with open(RAPPELS_FILE, "w", encoding="utf-8") as f:
+        json.dump(rappels, f, indent=4, ensure_ascii=False)
+
+
+rappels = load_rappels()
+
 messages = load_messages()
 
 films = load_films()
 
-blagues = [
-    "Je tiens beaucoup à ma montre, c'est mon grand-père qui me l'a vendue sur son lit de mort.",
-    "Consolation de cul-de-jatte : 'Je ne partirai pas les pieds devant.'",
-    "Pour vivre heureuse et toujours semblable à elle-même, une jolie femme doit mourir jeune, et une honnête femme mourir âgée.",
-    "Il ne faut jamais gifler un sourd. Il perd la moitié du plaisir. Il sent la gifle mais il ne l'entend pas.",
-    "Une femme laide, c’est le trésor d’une maison : cela évite bien des préoccupations.",
-    "Je veux être incinéré et je veux que 10% soit versé à mon imprésario, comme il est écrit dans mon contrat.",
-    "Les catastrophes, ce sont les fêtes des pauvres.",
-    "Il vaut mieux être cocu que veuf : il y a moins de formalités !",
-    "Il n'y a que les sots et les morts qui ne changent pas d'opinion.",
-    "La peur de tomber : voilà ce qui fait grimacer les pendus.",
-    "C'est très reposant d'être sourd. On ne vous dit que l'essentiel.",
-    "Tout arrive à qui sait attendre. La mort, par exemple.",
-    "Apprendre à mourir ! Et pourquoi donc ? On y réussit très bien la première fois !",
-    "L'agréable perspective du veuvage soutient le courage de beaucoup d'épouses.",
-    "Un incinéré ne peut pas se retourner dans sa tombe.",
-    "Je tiens beaucoup à ma montre, c'est mon grand-père qui me l'a vendue sur son lit de mort.",
-    "Si c'est les meilleurs qui partent les premiers, que penser alors des éjaculateurs précoces ?",
-    "Le mot infarctus est le seul mot irrégulier de la langue française. On dit : 'un infarctus, des obsèques'.",
-    "Autopsie : elle permet aux autres de découvrir ce qu'on n'a jamais pu voir en soi-même.",
-    "Les après-guerre sont faites pour enterrer les morts et trouver quelques belles phrases.",
-    "Jésus, portant sa croix dans la montée du Golgotha, aurait souhaité avoir un diable pour l'aider.",
-    "Il n'y a plus, de nos jours, que deux sortes de piétons : les rapides et les morts.",
-    "S'il n'y avait pas la Science, combien d'entre nous pourraient profiter de leur cancer pendant plus de cinq ans ?",
-    "Je préfère l'incinération à l'enterrement et les deux à un week-end avec ma femme.",
-    "Cécité : point de vue.",
-    "Il vaut mieux vivre riche que mourir riche.",
-    "Lorsque les trains déraillent, ce qui me fait de la peine, ce sont les morts de première classe.",
-    "Que voudriez-vous faire graver sur votre tombe ? Quelque chose de court et de simple. Quoi ? Je reviens dans cinq minutes.",
-    "Il n’y a pas de bonheur parfait ! dit l’homme quand sa belle-mère mourut et qu’on lui présenta la note des pompes funèbres.",
-    "Un professeur de langues mortes s’est suicidé pour parler les langues qu’il connaissait.",
-    "Un journal coupé en morceaux n'intéresse aucune femme, alors qu'une femme coupée en morceaux intéresse tous les journaux.",
-    "Un borgne, c'est un infirme qui n'a droit qu'à un demi-chien.",
-    "Il ne faut pas tuer son oncle, dans aucune circonstance, même pour en hériter.",
-    "A ma mort, je souhaite léguer mon corps à la science fiction.",
-    "Les secrets, c’est comme les cadavres…\nÇa finit toujours par remonter à la surface.",
-]
+blagues = load_blagues()
 
 
 @bot.event
@@ -95,27 +121,91 @@ async def on_ready():
     except Exception as e:
         print(e)
 
+    if not change_status.is_running():
+        change_status.start()
+
+    for rappel in rappels:
+        bot.loop.create_task(schedule_rappel(rappel))
+
+
+@tasks.loop(seconds=5)
+async def change_status():
+    name, activity_type = random.choice(statuses)
+
+    await bot.change_presence(
+        status=discord.Status.online,
+        activity=discord.Activity(type=activity_type, name=name),
+    )
+
+
+async def schedule_rappel(rappel):
+    await bot.wait_until_ready()
+
+    rappel_time = datetime.fromisoformat(rappel["date"])
+    now = datetime.now()
+
+    delay = (rappel_time - now).total_seconds()
+
+    if delay <= 0:
+        return
+
+    await asyncio.sleep(delay)
+
+    try:
+        user = await bot.fetch_user(rappel["user_id"])
+        await user.send(f"⏰ Rappel : {rappel['message']}")
+    except:
+        pass
+
+    global rappels
+    rappels = [r for r in rappels if r != rappel]
+    save_rappels(rappels)
+
 
 @bot.event
 async def on_message(message=discord.Message):
     # Empêcher le bot d'interpréter ses messages
     if message.author.bot:
         return
-    if message.content.lower() == "bonjour":
-        channel = message.channel
-        author = message.author
-        await channel.send("Comment tu vas ?")
-        await author.send("Comment tu vas ?")
-    if message.content.lower() == "bienvenue":
-        test_channel = bot.get_channel(1471532131602792612)
-        await test_channel.send("Bienvenue")
-    await bot.process_commands(message)
 
 
-@bot.command()
-async def blague(ctx):
+@bot.tree.command(name="blague", description="Envoyer une blague")
+async def blague(interaction: discord.Interaction):
     joke = random.choice(blagues)
-    await ctx.send(joke)
+    await interaction.response.send_message(joke)
+
+
+@bot.tree.command(name="addblague", description="Ajouter une blague")
+@app_commands.describe(blague="La blague à ajouter")
+@app_commands.checks.has_permissions(administrator=True)
+async def addblague(interaction: discord.Interaction, blague: str):
+
+    global blagues
+    if blague in blagues:
+        await interaction.response.send_message(
+            "⚠️ Cette blague existe déjà.", ephemeral=True
+        )
+        return
+
+    blagues.append(blague)
+    save_blagues(blagues)
+
+    await interaction.response.send_message(
+        "✅ Blague ajoutée avec succès !", ephemeral=True
+    )
+
+
+@bot.tree.command(name="userinfo", description="Récupérer les infos d'un membre")
+async def userinfo(interaction: discord.Interaction, member: discord.Member):
+    embed = discord.Embed(title="Infos du membre", color=discord.Color.blue())
+    embed.add_field(name="Nom", value=member.name)
+    embed.add_field(name="ID", value=member.id)
+    embed.add_field(name="Pseudo serveur", value=member.display_name)
+    embed.add_field(name="Compte créé le", value=member.created_at)
+    embed.add_field(name="A rejoint le serveur le", value=member.joined_at)
+    embed.set_thumbnail(url=member.avatar.url if member.avatar else None)
+
+    await interaction.response.send_message(embed=embed)
 
 
 @bot.command()
@@ -157,10 +247,84 @@ async def test(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
-@bot.tree.command(name="warnguy", description="Alerter une personne")
-async def warnguy(interaction: discord.Interaction, member: discord.Member):
-    await interaction.response.send_message("Alerte envoyée !")
-    await member.send("Tu as reçu une alerte")
+@bot.tree.command(name="rappel", description="Créer un rappel avec date et heure")
+@app_commands.describe(
+    member="Utilisateur à qui envoyer le rappel",
+    date="Format: JJ/MM/AAAA HH:MM",
+    message="Message du rappel",
+)
+async def rappel(
+    interaction: discord.Interaction, member: discord.Member, date: str, message: str
+):
+    created_by = interaction.user.id
+    try:
+        rappel_time = datetime.strptime(date, "%d/%m/%Y %H:%M")
+    except ValueError:
+        await interaction.response.send_message(
+            "❌ Format invalide. Utilise : JJ/MM/AAAA HH:MM", ephemeral=True
+        )
+        return
+
+    if rappel_time <= datetime.now():
+        await interaction.response.send_message(
+            "❌ La date doit être dans le futur.", ephemeral=True
+        )
+        return
+
+    rappels.append(
+        {
+            "created_by": created_by,
+            "user_id": member.id,
+            "date": rappel_time.isoformat(),
+            "message": message,
+        }
+    )
+
+    save_rappels(rappels)
+
+    bot.loop.create_task(schedule_rappel(rappels[-1]))
+
+    await interaction.response.send_message(
+        f"✅ Rappel enregistré pour le {date}", ephemeral=True
+    )
+
+
+@bot.tree.command(name="listrappels", description="Afficher et modifier vos rappels")
+async def listrappels(interaction: discord.Interaction):
+    user_id = interaction.user.id
+
+    rappels_afficher = [
+        (i, r) for i, r in enumerate(rappels) if r["created_by"] == user_id
+    ]
+
+    if not rappels_afficher:
+        await interaction.response.send_message(
+            "⚠️ Il n'y a pas de rappels", ephemeral=True
+        )
+        return
+
+    message_text = "\n".join(f"{i+1}. {r['message']}" for i, r in rappels_afficher)
+
+    view = View(timeout=None)
+
+    for idx, rappel in rappels_afficher:
+        button = Button(label=f"Modifier {idx+1}", style=discord.ButtonStyle.primary)
+
+        async def make_callback(interaction: discord.Interaction, index=idx):
+            if interaction.user.id != rappels[index]["created_by"]:
+                await interaction.response.send_message(
+                    "❌ Tu ne peux pas modifier ce rappel.", ephemeral=True
+                )
+                return
+
+            # Ouvre un modal privé pour l'utilisateur
+            modal = ModifierRappelModal(index)
+            await interaction.response.send_modal(modal)
+
+        button.callback = make_callback
+        view.add_item(button)
+
+    await interaction.response.send_message(message_text, view=view, ephemeral=True)
 
 
 @bot.tree.command(name="zou", description="Envoyer une pensée positive à Zheum")
@@ -268,20 +432,22 @@ async def addfilm(interaction: discord.Interaction, film: str):
 @bot.tree.command(name="listfilm", description="Afficher la liste de tous les films")
 async def listfilm(interaction: discord.Interaction):
     global films
-    if not films :
+    if not films:
         await interaction.response.send_message("⚠️ La liste est vide", ephemeral=True)
         return
-    
+
     listfilm = ""
     for film in films:
         listfilm += f"- {film}\n"
-        
+
     await interaction.response.send_message(listfilm)
+
 
 @listfilm.error
 async def listfilm_error(interaction: discord.Interaction, error):
     if len(films) == 0:
         await interaction.response.send_message("⚠️ La liste est vide", ephemeral=True)
         return
+
 
 bot.run(os.getenv("DISCORD_TOKEN"))
