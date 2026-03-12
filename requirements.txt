@@ -5,6 +5,7 @@ attrs==25.4.0
 audioop-lts==0.2.2
 discord.py==2.6.4
 frozenlist==1.8.0
+flask==3.1.0
 idna==3.11
 multidict==6.7.1
 propcache==0.4.1
