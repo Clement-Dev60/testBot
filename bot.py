@@ -9,6 +9,7 @@ from discord import app_commands  # type: ignore
 from datetime import datetime
 import asyncio
 from discord.ui import View, Button, Modal, TextInput  # type: ignore
+from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 
 
 load_dotenv()
@@ -18,6 +19,7 @@ print("Lancement du bot...")
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 intents = discord.Intents.default()
 intents.members = True
+blagues = BlaguesAPI(os.getenv("BLAGUES_API_TOKEN"))
 
 
 class ModifierRappelModal(Modal):
@@ -105,21 +107,28 @@ messages = load_messages()
 
 films = load_films()
 
-blagues = load_blagues()
+jokes = load_blagues()
 
 
 @bot.event
 async def on_ready():
     print("Bot allumé !")
-    # Synchroniser les commandes
+
     try:
-        # sync
         synced = await bot.tree.sync()
         print(f"Commandes slash synchronisées : {len(synced)}")
-        print(f"Nombres de blagues disponibles : {len(blagues)}")
-        print(f"Nombre de messages chargés : {len(messages)}")
+
     except Exception as e:
         print(e)
+
+    print(f"Nombres de jokes disponibles : {len(jokes)}")
+    print(f"Nombre de messages chargés : {len(messages)}")
+
+    try:
+        blague = await blagues.count()
+        print(f"Nombre de blagues api chargées : {blague.count}")
+    except Exception as e:
+        print(f"Erreur blagues api : {e}")
 
     if not change_status.is_running():
         change_status.start()
@@ -169,9 +178,15 @@ async def on_message(message=discord.Message):
         return
 
 
+@bot.tree.command(name="blague_noire", description="Envoyer une blague humour noir")
+async def blague_noire(interaction: discord.Interaction):
+    blague = await blagues.random_categorized(BlagueType.DARK)  # type: ignore
+    await interaction.response.send_message(f"{blague.joke}\n||{blague.answer}||")
+
+
 @bot.tree.command(name="blague", description="Envoyer une blague")
 async def blague(interaction: discord.Interaction):
-    joke = random.choice(blagues)
+    joke = random.choice(jokes)
     await interaction.response.send_message(joke)
 
 
@@ -180,15 +195,15 @@ async def blague(interaction: discord.Interaction):
 @app_commands.checks.has_permissions(administrator=True)
 async def addblague(interaction: discord.Interaction, blague: str):
 
-    global blagues
-    if blague in blagues:
+    global jokes
+    if blague in jokes:
         await interaction.response.send_message(
             "⚠️ Cette blague existe déjà.", ephemeral=True
         )
         return
 
-    blagues.append(blague)
-    save_blagues(blagues)
+    jokes.append(blague)
+    save_blagues(jokes)
 
     await interaction.response.send_message(
         "✅ Blague ajoutée avec succès !", ephemeral=True
