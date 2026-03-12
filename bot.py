@@ -10,7 +10,7 @@ from datetime import datetime
 import asyncio
 from discord.ui import View, Button, Modal, TextInput  # type: ignore
 from blagues_api import BlaguesAPI, BlagueType  # type: ignore
-from keep_alive import keep_alive # type: ignore
+from keepAlive import keep_alive # type: ignore
 
 keep_alive() 
 
