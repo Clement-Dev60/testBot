@@ -55,8 +55,6 @@ ZOU_MESSAGES = "zou_messages.json"
 
 FILM = "films.json"
 
-BLAGUES = "blagues.json"
-
 RAPPELS_FILE = "rappels.json"
 
 
@@ -79,17 +77,6 @@ def save_messages(messages):
     with open(ZOU_MESSAGES, "w", encoding="utf-8") as f:
         json.dump(messages, f, ensure_ascii=False, indent=4)
 
-
-def load_blagues():
-    with open(BLAGUES, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def save_blagues(blagues):
-    with open(BLAGUES, "w", encoding="utf-8") as f:
-        json.dump(blagues, f, ensure_ascii=False, indent=4)
-
-
 def load_rappels():
     try:
         with open(RAPPELS_FILE, "r", encoding="utf-8") as f:
@@ -109,8 +96,6 @@ messages = load_messages()
 
 films = load_films()
 
-jokes = load_blagues()
-
 
 @bot.event
 async def on_ready():
@@ -122,8 +107,6 @@ async def on_ready():
 
     except Exception as e:
         print(e)
-
-    print(f"Nombres de jokes disponibles : {len(jokes)}")
     print(f"Nombre de messages chargés : {len(messages)}")
 
     try:
@@ -180,36 +163,10 @@ async def on_message(message=discord.Message):
         return
 
 
-@bot.tree.command(name="blague_noire", description="Envoyer une blague humour noir")
-async def blague_noire(interaction: discord.Interaction):
+@bot.tree.command(name="blague", description="Envoyer une blague humour noir")
+async def blague(interaction: discord.Interaction):
     blague = await blagues.random_categorized(BlagueType.DARK)  # type: ignore
     await interaction.response.send_message(f"{blague.joke}\n||{blague.answer}||")
-
-
-@bot.tree.command(name="blague", description="Envoyer une blague")
-async def blague(interaction: discord.Interaction):
-    joke = random.choice(jokes)
-    await interaction.response.send_message(joke)
-
-
-@bot.tree.command(name="addblague", description="Ajouter une blague")
-@app_commands.describe(blague="La blague à ajouter")
-@app_commands.checks.has_permissions(administrator=True)
-async def addblague(interaction: discord.Interaction, blague: str):
-
-    global jokes
-    if blague in jokes:
-        await interaction.response.send_message(
-            "⚠️ Cette blague existe déjà.", ephemeral=True
-        )
-        return
-
-    jokes.append(blague)
-    save_blagues(jokes)
-
-    await interaction.response.send_message(
-        "✅ Blague ajoutée avec succès !", ephemeral=True
-    )
 
 
 @bot.tree.command(name="userinfo", description="Récupérer les infos d'un membre")
