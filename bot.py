@@ -10,9 +10,9 @@ from datetime import datetime
 import asyncio
 from discord.ui import View, Button, Modal, TextInput  # type: ignore
 from blagues_api import BlaguesAPI, BlagueType  # type: ignore
-from keepAlive import keep_alive # type: ignore
+from keepAlive import keep_alive  # type: ignore
 
-keep_alive() 
+keep_alive()
 
 load_dotenv()
 
@@ -57,6 +57,18 @@ FILM = "films.json"
 
 RAPPELS_FILE = "rappels.json"
 
+SERIE = "series.json"
+
+
+def load_series():
+    with open(SERIE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_series(series):
+    with open(SERIE, "w", encoding="utf-8") as f:
+        json.dump(series, f, ensure_ascii=False, indent=4)
+
 
 def load_films():
     with open(FILM, "r", encoding="utf-8") as f:
@@ -77,6 +89,7 @@ def save_messages(messages):
     with open(ZOU_MESSAGES, "w", encoding="utf-8") as f:
         json.dump(messages, f, ensure_ascii=False, indent=4)
 
+
 def load_rappels():
     try:
         with open(RAPPELS_FILE, "r", encoding="utf-8") as f:
@@ -95,6 +108,8 @@ rappels = load_rappels()
 messages = load_messages()
 
 films = load_films()
+
+series = load_series()
 
 
 @bot.event
@@ -364,7 +379,13 @@ async def github(interaction: discord.Interaction):
         "Voici le lien de mon github : https://github.com/Clement-Dev60"
     )
 
-
+@bot.tree.command(name="koikonfé", description="Choisir entre film et série")
+async def koikonfé(interaction: discord.Interaction):
+    
+    choix = random.choice(["film", "série"])
+    
+    await interaction.response.send_message(choix)
+    
 @bot.tree.command(name="film", description="Choisir un film au hasard dans la liste")
 async def film(interaction: discord.Interaction):
 
@@ -416,12 +437,58 @@ async def listfilm(interaction: discord.Interaction):
 
     await interaction.response.send_message(listfilm)
 
+    
+    
+@bot.tree.command(name="serie", description="Choisir une série au hasard dans la liste")
+async def serie(interaction: discord.Interaction):
 
-@listfilm.error
-async def listfilm_error(interaction: discord.Interaction, error):
-    if len(films) == 0:
+    serie = random.choice(series)
+
+    await interaction.response.send_message(serie)
+
+    series.remove(serie)
+    with open("series.json", "w", encoding="utf-8") as f:
+        json.dump(series, f, indent=4, ensure_ascii=False)
+
+
+@serie.error
+async def serie(interaction: discord.Interaction, error):
+    if len(series) == 0:
+        await interaction.response.send_message("La liste est vide", ephemeral=True)
+
+
+@bot.tree.command(name="addserie", description="Ajouter une série")
+@app_commands.describe(serie="La série à ajouter")
+@app_commands.checks.has_permissions(administrator=True)
+async def addserie(interaction: discord.Interaction, serie: str):
+
+    global series
+    if serie in series:
+        await interaction.response.send_message(
+            "⚠️ Cette série existe déjà.", ephemeral=True
+        )
+        return
+
+    series.append(serie)
+    save_series(series)
+
+    await interaction.response.send_message(
+        "✅ Série ajoutée avec succès !", ephemeral=True
+    )
+
+
+@bot.tree.command(name="listserie", description="Afficher la liste de toutes les séries")
+async def listserie(interaction: discord.Interaction):
+    global series
+    if not series:
         await interaction.response.send_message("⚠️ La liste est vide", ephemeral=True)
         return
+
+    listserie = ""
+    for serie in series:
+        listserie += f"- {serie}\n"
+
+    await interaction.response.send_message(listserie)
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
