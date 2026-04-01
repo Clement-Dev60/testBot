@@ -162,7 +162,9 @@ async def schedule_rappel(rappel):
 
     try:
         user = await bot.fetch_user(rappel["user_id"])
+        creator = await bot.fetch_user(rappel["created_by"])
         await user.send(f"⏰ Rappel : {rappel['message']}")
+        await creator.send(f"⏰ Le rappel : '{rappel['message']}', a bien été reçu par le destinataire")
     except:
         pass
 
