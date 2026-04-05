@@ -164,7 +164,9 @@ async def schedule_rappel(rappel):
         user = await bot.fetch_user(rappel["user_id"])
         creator = await bot.fetch_user(rappel["created_by"])
         await user.send(f"⏰ Rappel : {rappel['message']}")
-        await creator.send(f"⏰ Le rappel : '{rappel['message']}', a bien été reçu par le destinataire")
+        await creator.send(
+            f"⏰ Le rappel : '{rappel['message']}', a bien été reçu par le destinataire"
+        )
     except:
         pass
 
@@ -381,13 +383,15 @@ async def github(interaction: discord.Interaction):
         "Voici le lien de mon github : https://github.com/Clement-Dev60"
     )
 
+
 @bot.tree.command(name="koikonfé", description="Choisir entre film et série")
 async def koikonfé(interaction: discord.Interaction):
-    
+
     choix = random.choice(["film", "série"])
-    
+
     await interaction.response.send_message(choix)
-    
+
+
 @bot.tree.command(name="film", description="Choisir un film au hasard dans la liste")
 async def film(interaction: discord.Interaction):
 
@@ -426,6 +430,24 @@ async def addfilm(interaction: discord.Interaction, film: str):
     )
 
 
+@bot.tree.command(name="removeFilm", description="Retirer un film")
+@app_commands.describe(film="Le film à retirer")
+@app_commands.checks.has_permissions(administrator=True)
+async def addfilm(interaction: discord.Interaction, film: str):
+
+    global films
+    if not film in films:
+        await interaction.response.send_message(
+            "⚠️ Ce film n'est pas dans la liste.", ephemeral=True
+        )
+        return
+    films.pop(film)
+    save_films(films)
+    await interaction.response.send_message(
+        "✅ Film retiré avec succès !", ephemeral=True
+    )
+
+
 @bot.tree.command(name="listfilm", description="Afficher la liste de tous les films")
 async def listfilm(interaction: discord.Interaction):
     global films
@@ -439,8 +461,7 @@ async def listfilm(interaction: discord.Interaction):
 
     await interaction.response.send_message(listfilm)
 
-    
-    
+
 @bot.tree.command(name="serie", description="Choisir une série au hasard dans la liste")
 async def serie(interaction: discord.Interaction):
 
@@ -479,7 +500,9 @@ async def addserie(interaction: discord.Interaction, serie: str):
     )
 
 
-@bot.tree.command(name="listserie", description="Afficher la liste de toutes les séries")
+@bot.tree.command(
+    name="listserie", description="Afficher la liste de toutes les séries"
+)
 async def listserie(interaction: discord.Interaction):
     global series
     if not series:
