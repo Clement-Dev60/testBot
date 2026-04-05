@@ -441,7 +441,7 @@ async def removefilm(interaction: discord.Interaction, film: str):
             "⚠️ Ce film n'est pas dans la liste.", ephemeral=True
         )
         return
-    films.pop(film)
+    films.remove(film)
     save_films(films)
     await interaction.response.send_message(
         "✅ Film retiré avec succès !", ephemeral=True
