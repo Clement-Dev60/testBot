@@ -430,10 +430,10 @@ async def addfilm(interaction: discord.Interaction, film: str):
     )
 
 
-@bot.tree.command(name="removeFilm", description="Retirer un film")
+@bot.tree.command(name="removefilm", description="Retirer un film")
 @app_commands.describe(film="Le film à retirer")
 @app_commands.checks.has_permissions(administrator=True)
-async def addfilm(interaction: discord.Interaction, film: str):
+async def removefilm(interaction: discord.Interaction, film: str):
 
     global films
     if not film in films:
