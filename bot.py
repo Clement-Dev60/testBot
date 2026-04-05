@@ -434,8 +434,11 @@ async def addfilm(interaction: discord.Interaction, film: str):
 @app_commands.describe(film="Le film à retirer")
 @app_commands.checks.has_permissions(administrator=True)
 async def removefilm(interaction: discord.Interaction, film: str):
-
     global films
+
+    film = film.lower()
+    films = [f.lower() for f in films]
+
     if not film in films:
         await interaction.response.send_message(
             "⚠️ Ce film n'est pas dans la liste.", ephemeral=True
