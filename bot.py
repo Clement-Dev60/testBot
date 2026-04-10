@@ -556,11 +556,12 @@ def is_live(token):
 
 
 twitch_notified = False
+twitch_offline_notified = False
 
 
 @tasks.loop(seconds=60)
 async def check_twitch():
-    global twitch_notified
+    global twitch_notified, twitch_offline_notified
 
     token = get_twitch_token()
     stream = is_live(token)
@@ -578,14 +579,16 @@ async def check_twitch():
         embed.set_footer(text="Twitch Live")
         await channel.send("@everyone", embed=embed)
         twitch_notified = True
+        twitch_offline_notified = False
 
-    elif not stream:
+    elif not stream and not twitch_offline_notified:
         streamer = os.getenv("TWITCH_STREAMER")
         embed = discord.Embed(
-            title=f"🔴 {streamer} n'est plus en live !",
-            color=discord.Color.purple(),
+            title=f"⚫ {streamer} n'est plus en live !",
+            color=discord.Color.dark_grey(),
         )
         await channel.send("@everyone", embed=embed)
+        twitch_offline_notified = True  
         twitch_notified = False
 
 
