@@ -11,6 +11,7 @@ import asyncio
 from discord.ui import View, Button, Modal, TextInput  # type: ignore
 from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 from keepAlive import keep_alive  # type: ignore
+import requests
 
 keep_alive()
 
@@ -135,6 +136,9 @@ async def on_ready():
 
     for rappel in rappels:
         bot.loop.create_task(schedule_rappel(rappel))
+
+    if not check_twitch.is_running():
+        check_twitch.start()
 
 
 @tasks.loop(seconds=5)
@@ -416,6 +420,10 @@ async def film(interaction: discord.Interaction, error):
 async def addfilm(interaction: discord.Interaction, film: str):
 
     global films
+
+    film = film.lower()
+    films = [f.lower() for f in films]
+
     if film in films:
         await interaction.response.send_message(
             "⚠️ Ce film existe déjà.", ephemeral=True
@@ -517,6 +525,62 @@ async def listserie(interaction: discord.Interaction):
         listserie += f"- {serie}\n"
 
     await interaction.response.send_message(listserie)
+
+
+# --- Twitch ---
+
+
+def get_twitch_token():
+    r = requests.post(
+        "https://id.twitch.tv/oauth2/token",
+        params={
+            "client_id": os.getenv("TWITCH_CLIENT_ID"),
+            "client_secret": os.getenv("TWITCH_CLIENT_SECRET"),
+            "grant_type": "client_credentials",
+        },
+    )
+    return r.json()["access_token"]
+
+
+def is_live(token):
+    headers = {
+        "Client-ID": os.getenv("TWITCH_CLIENT_ID"),
+        "Authorization": f"Bearer {token}",
+    }
+    streamer = os.getenv("TWITCH_STREAMER")
+    r = requests.get(
+        f"https://api.twitch.tv/helix/streams?user_login={streamer}", headers=headers
+    )
+    data = r.json().get("data", [])
+    return data[0] if data else None
+
+
+twitch_notified = False
+
+
+@tasks.loop(seconds=60)
+async def check_twitch():
+    global twitch_notified
+
+    token = get_twitch_token()
+    stream = is_live(token)
+    channel = bot.get_channel(int(os.getenv("TWITCH_CHANNEL_ID")))
+
+    if stream and not twitch_notified:
+        streamer = os.getenv("TWITCH_STREAMER")
+        embed = discord.Embed(
+            title=f"🔴 {streamer} est en live !",
+            description=stream["title"],
+            color=discord.Color.purple(),
+            url=f"https://twitch.tv/{streamer}",
+        )
+        embed.add_field(name="Jeu", value=stream.get("game_name", "Inconnu"))
+        embed.set_footer(text="Twitch Live")
+        await channel.send(embed=embed)
+        twitch_notified = True
+
+    elif not stream:
+        twitch_notified = False
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
