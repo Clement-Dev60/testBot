@@ -580,6 +580,12 @@ async def check_twitch():
         twitch_notified = True
 
     elif not stream:
+        streamer = os.getenv("TWITCH_STREAMER")
+        embed = discord.Embed(
+            title=f"🔴 {streamer} n'est plus en live !",
+            color=discord.Color.purple(),
+        )
+        await channel.send("@everyone", embed=embed)
         twitch_notified = False
 
 
