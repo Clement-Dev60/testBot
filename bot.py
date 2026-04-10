@@ -575,7 +575,7 @@ async def check_twitch():
             url=f"https://twitch.tv/{streamer}",
         )
         embed.add_field(name="Jeu", value=stream.get("game_name", "Inconnu"))
-        embed.set_footer(text="Twitch Live")
+        embed.set_footer(text="Twitch Live", text="@everyone")
         await channel.send(embed=embed)
         twitch_notified = True
 
