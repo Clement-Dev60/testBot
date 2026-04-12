@@ -196,6 +196,14 @@ async def on_message(message: discord.Message):
 
     if bot.user.mentioned_in(message):
         content = message.content.replace(f"<@{bot.user.id}>", "").strip()
+        username = message.author.name
+
+        if username == "winoka_":
+            civilite = "Tu appelles cet utilisateur 'Madame'."
+        else:
+            civilite = "Tu appelles cet utilisateur 'Monsieur'."
+
+        prompt_dynamique = ALFRED_PROMPT + f"\n{civilite}"
 
         if not content:
             await message.reply("Vous m'avez sonné, Monsieur ?")
@@ -206,7 +214,7 @@ async def on_message(message: discord.Message):
                 response = groq_client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": ALFRED_PROMPT},
+                        {"role": "system", "content": prompt_dynamique},
                         {"role": "user", "content": content},
                     ],
                 )
