@@ -205,7 +205,7 @@ async def on_message(message: discord.Message):
         async with message.channel.typing():
             try:
                 response = genai_client.models.generate_content(
-                    model="gemini-1.5-flash-latest", 
+                    model="gemini-2.0-flash-lite", 
                     config=types.GenerateContentConfig(
                         system_instruction=ALFRED_PROMPT
                     ),
