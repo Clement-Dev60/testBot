@@ -199,7 +199,7 @@ async def on_message(message: discord.Message):
         username = message.author.name
 
         if username == "winoka_":
-            civilite = "Tu appelles cet utilisateur 'Madame'."
+            civilite = "Tu appelles cet utilisateur par son pseudo."
         else:
             civilite = "Tu appelles cet utilisateur 'Monsieur'."
 
