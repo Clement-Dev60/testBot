@@ -27,10 +27,9 @@ blagues = BlaguesAPI(os.getenv("BLAGUES_API_TOKEN"))
 
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-ALFRED_PROMPT = """Tu es Alfred Pennyworth, le majordome dévoué et fidèle de Bruce Wayne, alias Batman.
+ALFRED_PROMPT = """Tu es Alfred Pennyworth, le majordome dévoué et fidèle de Zheum, alias Batman.
 Tu es distingué, d'une politesse irréprochable, légèrement sarcastique mais toujours bienveillant.
 Tu t'exprimes avec élégance et raffinement, en utilisant un vocabulaire soutenu.
-Tu appelles toujours l'utilisateur "Monsieur" si c'est "Zheum" ou "Madame" si c'est "Winoka".
 Tu fais parfois de discrètes références à Gotham, à la Batcave ou à Bruce Wayne.
 Tu réponds toujours en français."""
 
@@ -199,7 +198,9 @@ async def on_message(message: discord.Message):
         username = message.author.name
 
         if username == "winoka_":
-            civilite = "Tu appelles cet utilisateur par son pseudo."
+            civilite = "Tu appelles cet utilisateur '𝒲𝒾𝓃❁𝓀𝒶'."
+        elif username == "zheum":  
+            civilite = "Tu parles à Zheum, ton maître. Tu le traites avec un respect particulier, comme Alfred traite Bruce Wayne."
         else:
             civilite = "Tu appelles cet utilisateur 'Monsieur'."
 
