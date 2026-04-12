@@ -203,12 +203,17 @@ async def on_message(message: discord.Message):
             return
 
         async with message.channel.typing():
-            response = genai_client.models.generate_content(
-                model="gemini-2.0-flash",
-                config=types.GenerateContentConfig(system_instruction=ALFRED_PROMPT),
-                contents=content,
-            )
-            await message.reply(response.text)
+            try:
+                response = genai_client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    config=types.GenerateContentConfig(
+                        system_instruction=ALFRED_PROMPT
+                    ),
+                    contents=content,
+                )
+                await message.reply(response.text)
+            except Exception as e:
+                await message.reply(f"❌ Erreur : {e}")
 
     await bot.process_commands(message)
 
