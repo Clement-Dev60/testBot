@@ -194,7 +194,7 @@ async def schedule_rappel(rappel):
 
 
 @bot.event
-async def on_message(message=discord.Message):
+async def on_message(message: discord.Message):
     if message.author.bot:
         return
 
