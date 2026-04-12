@@ -12,7 +12,8 @@ from discord.ui import View, Button, Modal, TextInput  # type: ignore
 from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 from keepAlive import keep_alive  # type: ignore
 import requests
-import google.generativeai as genai  # type: ignore
+from google import genai
+from google.genai import types  # type: ignore
 
 keep_alive()
 
@@ -25,7 +26,7 @@ intents = discord.Intents.default()
 intents.members = True
 blagues = BlaguesAPI(os.getenv("BLAGUES_API_TOKEN"))
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 ALFRED_PROMPT = """Tu es Alfred Pennyworth, le majordome dévoué et fidèle de Bruce Wayne, alias Batman.
 Tu es distingué, d'une politesse irréprochable, légèrement sarcastique mais toujours bienveillant.
@@ -33,10 +34,6 @@ Tu t'exprimes avec élégance et raffinement, en utilisant un vocabulaire souten
 Tu appelles toujours l'utilisateur "Monsieur" si c'est "Zheum" ou "Madame" si c'est "Winoka".
 Tu fais parfois de discrètes références à Gotham, à la Batcave ou à Bruce Wayne.
 Tu réponds toujours en français."""
-
-alfred_model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash", system_instruction=ALFRED_PROMPT
-)
 
 
 class ModifierRappelModal(Modal):
@@ -206,7 +203,11 @@ async def on_message(message: discord.Message):
             return
 
         async with message.channel.typing():
-            response = alfred_model.generate_content(content)
+            response = genai_client.models.generate_content(
+                model="gemini-2.0-flash",
+                config=types.GenerateContentConfig(system_instruction=ALFRED_PROMPT),
+                contents=content,
+            )
             await message.reply(response.text)
 
     await bot.process_commands(message)
