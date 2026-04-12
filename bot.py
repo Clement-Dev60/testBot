@@ -12,6 +12,7 @@ from discord.ui import View, Button, Modal, TextInput  # type: ignore
 from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 from keepAlive import keep_alive  # type: ignore
 import requests
+import google.generativeai as genai  # type: ignore
 
 keep_alive()
 
@@ -23,6 +24,19 @@ bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 intents = discord.Intents.default()
 intents.members = True
 blagues = BlaguesAPI(os.getenv("BLAGUES_API_TOKEN"))
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
+ALFRED_PROMPT = """Tu es Alfred Pennyworth, le majordome dévoué et fidèle de Bruce Wayne, alias Batman.
+Tu es distingué, d'une politesse irréprochable, légèrement sarcastique mais toujours bienveillant.
+Tu t'exprimes avec élégance et raffinement, en utilisant un vocabulaire soutenu.
+Tu appelles toujours l'utilisateur "Monsieur" si c'est "Zheum" ou "Madame" si c'est "Winoka".
+Tu fais parfois de discrètes références à Gotham, à la Batcave ou à Bruce Wayne.
+Tu réponds toujours en français."""
+
+alfred_model = genai.GenerativeModel(
+    model_name="gemini-1.5-flash", system_instruction=ALFRED_PROMPT
+)
 
 
 class ModifierRappelModal(Modal):
@@ -181,9 +195,21 @@ async def schedule_rappel(rappel):
 
 @bot.event
 async def on_message(message=discord.Message):
-    # Empêcher le bot d'interpréter ses messages
     if message.author.bot:
         return
+
+    if bot.user.mentioned_in(message):
+        content = message.content.replace(f"<@{bot.user.id}>", "").strip()
+
+        if not content:
+            await message.reply("Vous m'avez sonné, Monsieur ?")
+            return
+
+        async with message.channel.typing():
+            response = alfred_model.generate_content(content)
+            await message.reply(response.text)
+
+    await bot.process_commands(message)
 
 
 @bot.tree.command(name="blague", description="Envoyer une blague humour noir")
@@ -588,7 +614,7 @@ async def check_twitch():
             color=discord.Color.dark_grey(),
         )
         await channel.send("@everyone", embed=embed)
-        twitch_offline_notified = True  
+        twitch_offline_notified = True
         twitch_notified = False
 
 
