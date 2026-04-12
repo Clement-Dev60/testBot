@@ -12,8 +12,7 @@ from discord.ui import View, Button, Modal, TextInput  # type: ignore
 from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 from keepAlive import keep_alive  # type: ignore
 import requests
-from google import genai
-from google.genai import types  # type: ignore
+from groq import Groq  # type: ignore
 
 keep_alive()
 
@@ -26,7 +25,7 @@ intents = discord.Intents.default()
 intents.members = True
 blagues = BlaguesAPI(os.getenv("BLAGUES_API_TOKEN"))
 
-genai_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 ALFRED_PROMPT = """Tu es Alfred Pennyworth, le majordome dévoué et fidèle de Bruce Wayne, alias Batman.
 Tu es distingué, d'une politesse irréprochable, légèrement sarcastique mais toujours bienveillant.
@@ -204,14 +203,14 @@ async def on_message(message: discord.Message):
 
         async with message.channel.typing():
             try:
-                response = genai_client.models.generate_content(
-                    model="gemini-2.0-flash-lite", 
-                    config=types.GenerateContentConfig(
-                        system_instruction=ALFRED_PROMPT
-                    ),
-                    contents=content,
+                response = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": ALFRED_PROMPT},
+                        {"role": "user", "content": content},
+                    ],
                 )
-                await message.reply(response.text)
+                await message.reply(response.choices[0].message.content)
             except Exception as e:
                 await message.reply(f"❌ Erreur : {e}")
 
