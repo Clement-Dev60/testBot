@@ -66,6 +66,8 @@ ZOU_MESSAGES = "zou_messages.json"
 
 FILM = "films.json"
 
+JEU = "jeux.json"
+
 RAPPELS_FILE = "rappels.json"
 
 SERIE = "series.json"
@@ -89,6 +91,16 @@ def load_films():
 def save_films(films):
     with open(FILM, "w", encoding="utf-8") as f:
         json.dump(films, f, ensure_ascii=False, indent=4)
+
+
+def load_jeux():
+    with open(JEU, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_jeux(jeux):
+    with open(JEU, "w", encoding="utf-8") as f:
+        json.dump(jeux, f, ensure_ascii=False, indent=4)
 
 
 def load_messages():
@@ -119,6 +131,8 @@ rappels = load_rappels()
 messages = load_messages()
 
 films = load_films()
+
+jeux = load_jeux()
 
 series = load_series()
 
@@ -200,7 +214,7 @@ async def on_message(message: discord.Message):
 
         if username == "winoka_":
             civilite = "Tu appelles cet utilisateur '𝒲𝒾𝓃❁𝓀𝒶'."
-        elif username == "zheum":  
+        elif username == "zheum":
             civilite = "Tu parles à Zheum, ton maître. Tu le traites avec un respect particulier, comme Alfred traite Bruce Wayne."
         else:
             civilite = "Tu appelles cet utilisateur 'Monsieur'."
@@ -512,6 +526,77 @@ async def listfilm(interaction: discord.Interaction):
         listfilm += f"- {film}\n"
 
     await interaction.response.send_message(listfilm)
+
+
+@bot.tree.command(name="jeu", description="Choisir un jeu au hasard dans la liste")
+async def jeu(interaction: discord.Interaction):
+
+    jeu = random.choice(jeux)
+
+    await interaction.response.send_message(jeu)
+
+
+@jeu.error
+async def jeu(interaction: discord.Interaction, error):
+    if len(jeux) == 0:
+        await interaction.response.send_message("La liste est vide", ephemeral=True)
+
+
+@bot.tree.command(name="addjeu", description="Ajouter un jeu")
+@app_commands.describe(jeu="Le jeu à ajouter")
+@app_commands.checks.has_permissions(administrator=True)
+async def addjeu(interaction: discord.Interaction, jeu: str):
+
+    global jeux
+
+    jeu = jeu.lower()
+    jeux = [f.lower() for f in jeux]
+
+    if jeu in jeux:
+        await interaction.response.send_message("⚠️ Ce jeu existe déjà.", ephemeral=True)
+        return
+
+    jeux.append(jeu)
+    save_jeux(jeux)
+
+    await interaction.response.send_message(
+        "✅ Jeu ajouté avec succès !", ephemeral=True
+    )
+
+
+@bot.tree.command(name="removejeu", description="Retirer un jeu")
+@app_commands.describe(jeu="Le jeu à retirer")
+@app_commands.checks.has_permissions(administrator=True)
+async def removejeu(interaction: discord.Interaction, jeu: str):
+    global jeux
+
+    jeu = jeu.lower()
+    jeux = [f.lower() for f in jeux]
+
+    if not jeu in jeux:
+        await interaction.response.send_message(
+            "⚠️ Ce jeu n'est pas dans la liste.", ephemeral=True
+        )
+        return
+    jeux.remove(jeu)
+    save_jeux(jeux)
+    await interaction.response.send_message(
+        "✅ Jeu retiré avec succès !", ephemeral=True
+    )
+
+
+@bot.tree.command(name="listjeu", description="Afficher la liste de tous les jeux")
+async def listjeu(interaction: discord.Interaction):
+    global jeux
+    if not jeux:
+        await interaction.response.send_message("⚠️ La liste est vide", ephemeral=True)
+        return
+
+    listjeu = ""
+    for jeu in jeux:
+        listjeu += f"- {jeu}\n"
+
+    await interaction.response.send_message(listjeu)
 
 
 @bot.tree.command(name="serie", description="Choisir une série au hasard dans la liste")
