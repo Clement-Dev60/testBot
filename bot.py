@@ -530,6 +530,9 @@ async def listfilm(interaction: discord.Interaction):
 
 @bot.tree.command(name="jeu", description="Choisir un jeu au hasard dans la liste")
 async def jeu(interaction: discord.Interaction):
+    if not jeux:
+        await interaction.response.send_message("⚠️ La liste est vide", ephemeral=True)
+        return
 
     jeu = random.choice(jeux)
 
@@ -537,9 +540,8 @@ async def jeu(interaction: discord.Interaction):
 
 
 @jeu.error
-async def jeu(interaction: discord.Interaction, error):
-    if len(jeux) == 0:
-        await interaction.response.send_message("La liste est vide", ephemeral=True)
+async def jeu_error(interaction: discord.Interaction, error):
+    await interaction.response.send_message(f"❌ Erreur : {error}", ephemeral=True)
 
 
 @bot.tree.command(name="addjeu", description="Ajouter un jeu")
