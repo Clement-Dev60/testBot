@@ -434,6 +434,22 @@ async def addzou_error(interaction: discord.Interaction, error):
         await interaction.response.send_message(
             "❌ Tu n'as pas la permission d'utiliser cette commande.", ephemeral=True
         )
+        
+@bot.tree.command(name="listzou", description="Afficher la liste de toutes les phrases dans le fichier zou")
+async def listzou(ctx):
+    guild = ctx.guild
+    member = 1105940410725060739
+    wino = guild.get_member(member)
+    global messages
+    if not messages:
+        await wino.send("⚠️ La liste est vide", ephemeral=True)
+        return
+
+    listzou = ""
+    for zou in messages:
+        listzou += f"- {zou}\n"
+
+    await wino.send(listzou)
 
 
 @bot.tree.command(name="github", description="Affiche mon github")
