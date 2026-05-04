@@ -457,15 +457,21 @@ async def listzou(interaction: discord.Interaction):
         await interaction.followup.send("⚠️ La liste est vide.")
         return
 
-    listzou = "\n".join(f"- {zou}" for zou in messages)
+    liste = "\n".join(f"- {zou}" for zou in messages)
 
     try:
-        await wino.send(listzou)
+        for i in range(0, len(liste), 1900):
+            await wino.send(liste[i : i + 1900])
+
         await interaction.followup.send("✅ Liste envoyée en MP")
+
     except discord.Forbidden:
         await interaction.followup.send(
             "⚠️ Impossible d'envoyer un MP à cet utilisateur."
         )
+
+    except Exception as e:
+        await interaction.followup.send(f"Erreur : {e}")
 
 
 @bot.tree.command(name="github", description="Affiche mon github")
