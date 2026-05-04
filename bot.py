@@ -440,29 +440,32 @@ async def addzou_error(interaction: discord.Interaction, error):
     name="listzou",
     description="Afficher la liste de toutes les phrases dans le fichier zou",
 )
-async def listzou(interaction):
+async def listzou(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
     guild = interaction.guild
     member_id = 1105940410725060739
 
     wino = guild.get_member(member_id)
 
     if wino is None:
-        await interaction.response.send_message(
-            "⚠️ Membre introuvable.", ephemeral=True
-        )
+        await interaction.followup.send("⚠️ Membre introuvable.")
         return
 
     global messages
     if not messages:
-        await interaction.response.send_message("⚠️ La liste est vide.", ephemeral=True)
+        await interaction.followup.send("⚠️ La liste est vide.")
         return
 
-    listzou = ""
-    for zou in messages:
-        listzou += f"- {zou}\n"
+    listzou = "\n".join(f"- {zou}" for zou in messages)
 
-    await wino.send(listzou)
-    await interaction.response.send_message("✅ Liste envoyée en MP", ephemeral=True)
+    try:
+        await wino.send(listzou)
+        await interaction.followup.send("✅ Liste envoyée en MP")
+    except discord.Forbidden:
+        await interaction.followup.send(
+            "⚠️ Impossible d'envoyer un MP à cet utilisateur."
+        )
 
 
 @bot.tree.command(name="github", description="Affiche mon github")
