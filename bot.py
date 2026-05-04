@@ -442,13 +442,19 @@ async def addzou_error(interaction: discord.Interaction, error):
 )
 async def listzou(interaction):
     guild = interaction.guild
-    
     member_id = 1105940410725060739
+
     wino = guild.get_member(member_id)
-    
+
+    if wino is None:
+        await interaction.response.send_message(
+            "⚠️ Membre introuvable.", ephemeral=True
+        )
+        return
+
     global messages
     if not messages:
-        await wino.send("⚠️ La liste est vide")
+        await interaction.response.send_message("⚠️ La liste est vide.", ephemeral=True)
         return
 
     listzou = ""
@@ -456,6 +462,7 @@ async def listzou(interaction):
         listzou += f"- {zou}\n"
 
     await wino.send(listzou)
+    await interaction.response.send_message("✅ Liste envoyée en MP", ephemeral=True)
 
 
 @bot.tree.command(name="github", description="Affiche mon github")
