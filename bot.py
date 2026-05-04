@@ -434,15 +434,21 @@ async def addzou_error(interaction: discord.Interaction, error):
         await interaction.response.send_message(
             "❌ Tu n'as pas la permission d'utiliser cette commande.", ephemeral=True
         )
-        
-@bot.tree.command(name="listzou", description="Afficher la liste de toutes les phrases dans le fichier zou")
-async def listzou(ctx):
-    guild = ctx.guild
-    member = 1105940410725060739
-    wino = guild.get_member(member)
+
+
+@bot.tree.command(
+    name="listzou",
+    description="Afficher la liste de toutes les phrases dans le fichier zou",
+)
+async def listzou(interaction):
+    guild = interaction.guild
+    
+    member_id = 1105940410725060739
+    wino = guild.get_member(member_id)
+    
     global messages
     if not messages:
-        await wino.send("⚠️ La liste est vide", ephemeral=True)
+        await wino.send("⚠️ La liste est vide")
         return
 
     listzou = ""
@@ -571,7 +577,9 @@ async def addjeu(interaction: discord.Interaction, jeu: str):
     jeux = [f.lower() for f in jeux]
 
     if jeu in jeux:
-        await interaction.response.send_message("⚠️ Ce jeu existe déjà.", ephemeral=True)
+        await interaction.response.send_message(
+            "⚠️ Ce jeu existe déjà.", ephemeral=True
+        )
         return
 
     jeux.append(jeu)
