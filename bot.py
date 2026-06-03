@@ -725,39 +725,74 @@ def is_live(token):
 
 twitch_notified = False
 twitch_offline_notified = False
+twitch_live_message = None
+twitch_offline_message = None
 
 
-@tasks.loop(seconds=60)
+async def delete_twitch_messages():
+    await asyncio.sleep(1200)
+
+    global twitch_live_message, twitch_offline_message
+
+    for msg in [twitch_live_message, twitch_offline_message]:
+        if msg is not None:
+            try:
+                await msg.delete()
+            except discord.NotFound:
+                pass
+
+    twitch_live_message = None
+    twitch_offline_message = None
+
+
+last_live_state = None
+
+
+@tasks.loop(seconds=10)
 async def check_twitch():
-    global twitch_notified, twitch_offline_notified
+    global last_live_state
+    global twitch_live_message, twitch_offline_message
 
     token = get_twitch_token()
     stream = is_live(token)
+    
+    is_currently_live = stream is not None
+
     channel = bot.get_channel(int(os.getenv("TWITCH_CHANNEL_ID")))
 
-    if stream and not twitch_notified:
-        streamer = os.getenv("TWITCH_STREAMER")
+    if last_live_state is None:
+        last_live_state = is_currently_live
+        return
+
+    streamer = os.getenv("TWITCH_STREAMER")
+
+    if is_currently_live and not last_live_state:
+
         embed = discord.Embed(
             title=f"🔴 {streamer} est en live !",
             description=stream["title"],
             color=discord.Color.purple(),
             url=f"https://twitch.tv/{streamer}",
         )
-        embed.add_field(name="Jeu", value=stream.get("game_name", "Inconnu"))
-        embed.set_footer(text="Twitch Live")
-        await channel.send("@everyone", embed=embed)
-        twitch_notified = True
-        twitch_offline_notified = False
 
-    elif not stream and not twitch_offline_notified:
-        streamer = os.getenv("TWITCH_STREAMER")
+        embed.add_field(name="Jeu", value=stream.get("game_name", "Inconnu"))
+
+        embed.set_footer(text="Twitch Live")
+
+        twitch_live_message = await channel.send("@everyone", embed=embed)
+
+    elif not is_currently_live and last_live_state:
+
         embed = discord.Embed(
             title=f"⚫ {streamer} n'est plus en live !",
-            color=discord.Color.dark_grey(),
+            color=discord.Color.red(),
         )
-        await channel.send("@everyone", embed=embed)
-        twitch_offline_notified = True
-        twitch_notified = False
+
+        twitch_offline_message = await channel.send("@everyone", embed=embed)
+
+        asyncio.create_task(delete_twitch_messages())
+
+    last_live_state = is_currently_live
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
