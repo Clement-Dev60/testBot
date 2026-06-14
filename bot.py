@@ -755,18 +755,23 @@ async def check_twitch():
 
     token = get_twitch_token()
     stream = is_live(token)
-    
+
     is_currently_live = stream is not None
 
+    print(f"[TWITCH] is_live={is_currently_live} | last_state={last_live_state}")
+
     channel = bot.get_channel(int(os.getenv("TWITCH_CHANNEL_ID")))
+    print(f"[TWITCH] channel={channel}")
 
     if last_live_state is None:
         last_live_state = is_currently_live
+        print(f"[TWITCH] Initialisation -> last_state={last_live_state}, pas de notif")
         return
 
     streamer = os.getenv("TWITCH_STREAMER")
 
     if is_currently_live and not last_live_state:
+        print("[TWITCH] -> Passage en LIVE détecté, envoi notif")
 
         embed = discord.Embed(
             title=f"🔴 {streamer} est en live !",
@@ -782,6 +787,7 @@ async def check_twitch():
         twitch_live_message = await channel.send("@everyone", embed=embed)
 
     elif not is_currently_live and last_live_state:
+        print("[TWITCH] -> Passage HORS LIGNE détecté, envoi notif")
 
         embed = discord.Embed(
             title=f"⚫ {streamer} n'est plus en live !",
@@ -793,6 +799,7 @@ async def check_twitch():
         asyncio.create_task(delete_twitch_messages())
 
     last_live_state = is_currently_live
+    print(f"[TWITCH] last_state mis à jour -> {last_live_state}")
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
