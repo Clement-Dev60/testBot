@@ -192,10 +192,12 @@ async def schedule_rappel(rappel):
         user = await bot.fetch_user(rappel["user_id"])
         creator = await bot.fetch_user(rappel["created_by"])
 
-        if rappel.get("image"):
-            embed = discord.Embed(description=f"⏰ Rappel : {rappel['message']}")
-            embed.set_image(url=rappel["image"])
-            await user.send(embed=embed)
+        image_path = rappel.get("image_path")
+
+        if image_path and os.path.exists(image_path):
+            file = discord.File(image_path)
+            await user.send(f"⏰ Rappel : {rappel['message']}", file=file)
+            os.remove(image_path)
         else:
             await user.send(f"⏰ Rappel : {rappel['message']}")
 
@@ -311,13 +313,14 @@ async def test(interaction: discord.Interaction):
     member="Utilisateur à qui envoyer le rappel",
     date="Format: JJ/MM/AAAA HH:MM",
     message="Message du rappel",
+    image="Image à joindre au rappel (optionnel)",
 )
 async def rappel(
     interaction: discord.Interaction,
     member: discord.Member,
     date: str,
     message: str,
-    image: str = None,
+    image: discord.Attachment = None,
 ):
     created_by = interaction.user.id
     try:
@@ -334,13 +337,27 @@ async def rappel(
         )
         return
 
+    image_path = None
+
+    if image:
+        os.makedirs("rappels_images", exist_ok=True)
+        extension = image.filename.split(".")[-1]
+        filename = (
+            f"{interaction.user.id}_{int(datetime.now().timestamp())}.{extension}"
+        )
+        image_path = f"rappels_images/{filename}"
+
+        image_data = requests.get(image.url).content
+        with open(image_path, "wb") as f:
+            f.write(image_data)
+
     rappels.append(
         {
             "created_by": created_by,
             "user_id": member.id,
             "date": rappel_time.isoformat(),
             "message": message,
-            "image": image,
+            "image_path": image_path,
         }
     )
 
