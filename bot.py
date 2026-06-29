@@ -191,7 +191,14 @@ async def schedule_rappel(rappel):
     try:
         user = await bot.fetch_user(rappel["user_id"])
         creator = await bot.fetch_user(rappel["created_by"])
-        await user.send(f"⏰ Rappel : {rappel['message']}")
+
+        if rappel.get("image"):
+            embed = discord.Embed(description=f"⏰ Rappel : {rappel['message']}")
+            embed.set_image(url=rappel["image"])
+            await user.send(embed=embed)
+        else:
+            await user.send(f"⏰ Rappel : {rappel['message']}")
+
         await creator.send(
             f"⏰ Le rappel : '{rappel['message']}', a bien été reçu par le destinataire"
         )
@@ -306,7 +313,11 @@ async def test(interaction: discord.Interaction):
     message="Message du rappel",
 )
 async def rappel(
-    interaction: discord.Interaction, member: discord.Member, date: str, message: str
+    interaction: discord.Interaction,
+    member: discord.Member,
+    date: str,
+    message: str,
+    image: str = None,
 ):
     created_by = interaction.user.id
     try:
@@ -329,6 +340,7 @@ async def rappel(
             "user_id": member.id,
             "date": rappel_time.isoformat(),
             "message": message,
+            "image": image,
         }
     )
 
