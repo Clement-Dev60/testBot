@@ -72,6 +72,8 @@ RAPPELS_FILE = "rappels.json"
 
 SERIE = "series.json"
 
+FREE_GAMES_FILE = "free_games.json"
+
 
 def load_series():
     with open(SERIE, "r", encoding="utf-8") as f:
@@ -166,6 +168,10 @@ async def on_ready():
         print("[TWITCH] Tâche check_twitch démarrée")
     else:
         print("[TWITCH] Tâche check_twitch déjà en cours")
+
+    if not check_free_games.is_running():
+        check_free_games.start()
+        print("[FREE GAMES] Tâche démarrée")
 
 
 @tasks.loop(seconds=5)
@@ -780,7 +786,7 @@ async def delete_twitch_messages():
 last_live_state = None
 
 
-@tasks.loop(seconds=10)
+@tasks.loop(seconds=30)
 async def check_twitch():
     global last_live_state
     global twitch_live_message, twitch_offline_message
@@ -832,6 +838,130 @@ async def check_twitch():
 
     last_live_state = is_currently_live
     print(f"[TWITCH] last_state mis à jour -> {last_live_state}")
+
+
+# --- Jeux gratuits ---
+
+
+def load_free_games():
+    try:
+        with open(FREE_GAMES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+
+def save_free_games(games):
+    with open(FREE_GAMES_FILE, "w", encoding="utf-8") as f:
+        json.dump(games, f, ensure_ascii=False, indent=4)
+
+
+def get_epic_free_games():
+    try:
+        r = requests.get(
+            "https://store-site-backend-static.ak.epicgames.com/freeGamesPromotions",
+            params={"locale": "fr", "country": "FR", "allowCountries": "FR"},
+        )
+        games = r.json()["data"]["Catalog"]["searchStore"]["elements"]
+        free = []
+        for game in games:
+            promotions = game.get("promotions")
+            if not promotions:
+                continue
+            offers = promotions.get("promotionalOffers", [])
+            for offer_group in offers:
+                for offer in offer_group.get("promotionalOffers", []):
+                    if offer["discountSetting"]["discountPercentage"] == 0:
+                        free.append(
+                            {
+                                "title": game["title"],
+                                "store": "Epic Games",
+                                "url": f"https://store.epicgames.com/fr/p/{game.get('productSlug', '')}",
+                                "image": (
+                                    game["keyImages"][0]["url"]
+                                    if game.get("keyImages")
+                                    else None
+                                ),
+                            }
+                        )
+        return free
+    except Exception as e:
+        print(f"[FREE GAMES] Erreur Epic : {e}")
+        return []
+
+
+def get_steam_free_games():
+    try:
+        r = requests.get(
+            "https://api.isthereanydeal.com/deals/v2",
+            params={
+                "key": os.getenv("ITAD_API_KEY"),
+                "country": "FR",
+                "limit": 50,
+            },
+            json={
+                "filter": {"cut": {"min": 100, "max": 100}, "shops": [61]}  # 61 = Steam
+            },
+        )
+        data = r.json()
+        free = []
+        for game in data.get("list", []):
+            if game["deal"]["cut"] == 100:
+                free.append(
+                    {
+                        "title": game["title"],
+                        "store": "Steam",
+                        "url": game["deal"]["url"],
+                        "image": game["assets"].get("banner300"),
+                    }
+                )
+        return free
+    except Exception as e:
+        print(f"[FREE GAMES] Erreur Steam/ITAD : {e}")
+        return []
+
+
+notified_games = load_free_games()
+
+
+@tasks.loop(seconds=30)
+async def check_free_games():
+    global notified_games
+
+    channel = bot.get_channel(int(os.getenv("FREE_GAMES_CHANNEL_ID")))
+    if not channel:
+        print("[FREE GAMES] Salon introuvable")
+        return
+
+    all_free = get_epic_free_games() + get_steam_free_games()
+
+    current_titles = [g["title"] for g in all_free]
+
+    # Supprimer les jeux qui ne sont plus gratuits
+    notified_games = [g for g in notified_games if g in current_titles]
+    save_free_games(notified_games)
+
+    for game in all_free:
+        if game["title"] in notified_games:
+            continue
+
+        embed = discord.Embed(
+            title=f"🎮 {game['title']} est gratuit !",
+            color=discord.Color.green(),
+            url=game["url"],
+        )
+        embed.add_field(name="Plateforme", value=game["store"])
+        embed.set_footer(text="Dépêche-toi, l'offre est limitée !")
+
+        if game["image"]:
+            embed.set_image(url=game["image"])
+
+        await channel.send("@everyone", embed=embed)
+        notified_games.append(game["title"])
+        save_free_games(notified_games)
+        await asyncio.sleep(1)
+
+    print(f"[FREE GAMES] Vérification terminée, {len(all_free)} jeux gratuits trouvés")
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
