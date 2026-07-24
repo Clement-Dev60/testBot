@@ -163,6 +163,9 @@ async def on_ready():
 
     if not check_twitch.is_running():
         check_twitch.start()
+        print("[TWITCH] Tâche check_twitch démarrée")
+    else:
+        print("[TWITCH] Tâche check_twitch déjà en cours")
 
 
 @tasks.loop(seconds=5)
