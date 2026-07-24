@@ -957,6 +957,10 @@ async def check_free_games():
     # Filtrer les nouveaux jeux non notifiés
     new_epic = [g for g in epic_games if g["title"] not in notified_games]
     new_steam = [g for g in steam_games if g["title"] not in notified_games]
+    
+    print(f"[FREE GAMES] notified_games={notified_games}")
+    print(f"[FREE GAMES] new_epic={[g['title'] for g in new_epic]}")
+    print(f"[FREE GAMES] new_steam={[g['title'] for g in new_steam]}")
 
     # Ping Epic Games (un seul embed)
     if new_epic:
