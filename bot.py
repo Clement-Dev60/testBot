@@ -938,7 +938,7 @@ def format_end_date(end_date):
 notified_games = load_free_games()
 
 
-@tasks.loop(seconds=30)
+@tasks.loop(hours=1)
 async def check_free_games():
     global notified_games
 
