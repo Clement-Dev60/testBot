@@ -842,6 +842,8 @@ async def check_twitch():
 
 # --- Jeux gratuits ---
 
+FREE_GAMES_FILE = "free_games.json"
+
 
 def load_free_games():
     try:
@@ -872,6 +874,7 @@ def get_epic_free_games():
             for offer_group in offers:
                 for offer in offer_group.get("promotionalOffers", []):
                     if offer["discountSetting"]["discountPercentage"] == 0:
+                        end_date = offer.get("endDate", None)
                         free.append(
                             {
                                 "title": game["title"],
@@ -882,6 +885,7 @@ def get_epic_free_games():
                                     if game.get("keyImages")
                                     else None
                                 ),
+                                "end_date": end_date,
                             }
                         )
         return free
@@ -899,26 +903,36 @@ def get_steam_free_games():
                 "country": "FR",
                 "limit": 50,
             },
-            json={
-                "filter": {"cut": {"min": 100, "max": 100}, "shops": [61]}  # 61 = Steam
-            },
+            json={"filter": {"cut": {"min": 100, "max": 100}, "shops": [61]}},
         )
         data = r.json()
         free = []
         for game in data.get("list", []):
             if game["deal"]["cut"] == 100:
+                expiry = game["deal"].get("expiry", None)
                 free.append(
                     {
                         "title": game["title"],
                         "store": "Steam",
                         "url": game["deal"]["url"],
                         "image": game["assets"].get("banner300"),
+                        "end_date": expiry,
                     }
                 )
         return free
     except Exception as e:
         print(f"[FREE GAMES] Erreur Steam/ITAD : {e}")
         return []
+
+
+def format_end_date(end_date):
+    if not end_date:
+        return "Durée inconnue"
+    try:
+        dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+        return f"Jusqu'au {dt.strftime('%d/%m/%Y à %Hh%M')}"
+    except:
+        return "Durée inconnue"
 
 
 notified_games = load_free_games()
@@ -933,35 +947,62 @@ async def check_free_games():
         print("[FREE GAMES] Salon introuvable")
         return
 
-    all_free = get_epic_free_games() + get_steam_free_games()
+    epic_games = get_epic_free_games()
+    steam_games = get_steam_free_games()
 
-    current_titles = [g["title"] for g in all_free]
-
-    # Supprimer les jeux qui ne sont plus gratuits
+    current_titles = [g["title"] for g in epic_games + steam_games]
     notified_games = [g for g in notified_games if g in current_titles]
     save_free_games(notified_games)
 
-    for game in all_free:
-        if game["title"] in notified_games:
-            continue
+    # Filtrer les nouveaux jeux non notifiés
+    new_epic = [g for g in epic_games if g["title"] not in notified_games]
+    new_steam = [g for g in steam_games if g["title"] not in notified_games]
 
+    # Ping Epic Games (un seul embed)
+    if new_epic:
         embed = discord.Embed(
-            title=f"🎮 {game['title']} est gratuit !",
-            color=discord.Color.green(),
-            url=game["url"],
+            title="🎮 Jeux gratuits sur Epic Games !",
+            color=discord.Color.dark_blue(),
         )
-        embed.add_field(name="Plateforme", value=game["store"])
-        embed.set_footer(text="Dépêche-toi, l'offre est limitée !")
-
-        if game["image"]:
-            embed.set_image(url=game["image"])
-
+        for game in new_epic:
+            embed.add_field(
+                name=game["title"],
+                value=f"[Récupérer]({game['url']}) • {format_end_date(game['end_date'])}",
+                inline=False,
+            )
+            if game["image"] and len(new_epic) == 1:
+                embed.set_image(url=game["image"])
+        embed.set_footer(text="Epic Games Store")
         await channel.send("@everyone", embed=embed)
-        notified_games.append(game["title"])
-        save_free_games(notified_games)
-        await asyncio.sleep(1)
 
-    print(f"[FREE GAMES] Vérification terminée, {len(all_free)} jeux gratuits trouvés")
+        for game in new_epic:
+            notified_games.append(game["title"])
+        save_free_games(notified_games)
+
+    # Ping Steam (un seul embed)
+    if new_steam:
+        embed = discord.Embed(
+            title="🎮 Jeux gratuits sur Steam !",
+            color=discord.Color.blue(),
+        )
+        for game in new_steam:
+            embed.add_field(
+                name=game["title"],
+                value=f"[Récupérer]({game['url']}) • {format_end_date(game['end_date'])}",
+                inline=False,
+            )
+            if game["image"] and len(new_steam) == 1:
+                embed.set_image(url=game["image"])
+        embed.set_footer(text="Steam")
+        await channel.send("@everyone", embed=embed)
+
+        for game in new_steam:
+            notified_games.append(game["title"])
+        save_free_games(notified_games)
+
+    print(
+        f"[FREE GAMES] Vérification terminée — Epic: {len(epic_games)} | Steam: {len(steam_games)}"
+    )
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
