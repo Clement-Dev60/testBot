@@ -1091,7 +1091,7 @@ class FermeView(discord.ui.View):
         return callback
 
 
-@bot.slash_command(
+@bot.tree.command(
     name="ferme-a-fer", description="Affiche la liste des items pour la ferme à fer"
 )
 async def ferme_a_fer(ctx):
