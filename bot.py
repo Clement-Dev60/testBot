@@ -13,6 +13,7 @@ from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 from keepAlive import keep_alive  # type: ignore
 import requests
 from groq import Groq  # type: ignore
+import minecraft_fr # type: ignore
 
 keep_alive()
 
@@ -1019,7 +1020,7 @@ ferme_checked = {}
 
 
 def format_item_name(item_id):
-    name = item_id.replace("minecraft:", "").replace("_", " ").title()
+    name = minecraft_fr.get_item_name_fr(item_id)
     return name
 
 
