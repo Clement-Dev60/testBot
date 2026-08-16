@@ -957,7 +957,7 @@ async def check_free_games():
     # Filtrer les nouveaux jeux non notifiés
     new_epic = [g for g in epic_games if g["title"] not in notified_games]
     new_steam = [g for g in steam_games if g["title"] not in notified_games]
-    
+
     print(f"[FREE GAMES] notified_games={notified_games}")
     print(f"[FREE GAMES] new_epic={[g['title'] for g in new_epic]}")
     print(f"[FREE GAMES] new_steam={[g['title'] for g in new_steam]}")
@@ -1007,6 +1007,105 @@ async def check_free_games():
     print(
         f"[FREE GAMES] Vérification terminée — Epic: {len(epic_games)} | Steam: {len(steam_games)}"
     )
+
+
+# --- Commandes Minecraft --- #
+
+import json
+import os
+
+FERME_A_FER_FILE = "/var/www/testbot/ferme_a_fer.json"
+ferme_checked = {}
+
+
+def format_item_name(item_id):
+    name = item_id.replace("minecraft:", "").replace("_", " ").title()
+    return name
+
+
+def load_ferme_data():
+    with open(FERME_A_FER_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def build_ferme_embed(data, checked_set, message_id=None):
+    lines = []
+    for i, item in enumerate(data["items"]):
+        stacks = item["count"] // 64
+        reste = item["count"] % 64
+        if stacks > 0 and reste > 0:
+            qty = f"{stacks} stack(s) + {reste}"
+        elif stacks > 0:
+            qty = f"{stacks} stack(s)"
+        else:
+            qty = f"{reste}"
+
+        name = format_item_name(item["id"])
+        line = (
+            f"~~{i+1}. {name} — {qty}~~"
+            if i in checked_set
+            else f"{i+1}. {name} — {qty}"
+        )
+        lines.append(line)
+
+    embed = discord.Embed(
+        title=f"🔨 {data['name']}", description="\n".join(lines), color=0xE67E22
+    )
+    return embed
+
+
+class FermeView(discord.ui.View):
+    def __init__(self, data, checked_set, msg_id):
+        super().__init__(timeout=None)
+        self.data = data
+        self.checked_set = checked_set
+        self.msg_id = msg_id
+
+        for i, item in enumerate(data["items"]):
+            name = format_item_name(item["id"])
+            btn = discord.ui.Button(
+                label=f"✅ {name[:40]}",
+                style=(
+                    discord.ButtonStyle.success
+                    if i in checked_set
+                    else discord.ButtonStyle.secondary
+                ),
+                custom_id=f"ferme_{msg_id}_{i}",
+            )
+            btn.callback = self.make_callback(i)
+            self.add_item(btn)
+
+    def make_callback(self, index):
+        async def callback(interaction: discord.Interaction):
+            if index in self.checked_set:
+                self.checked_set.discard(index)
+            else:
+                self.checked_set.add(index)
+
+            ferme_checked[self.msg_id] = self.checked_set
+
+            embed = build_ferme_embed(self.data, self.checked_set, self.msg_id)
+            view = FermeView(self.data, self.checked_set, self.msg_id)
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        return callback
+
+
+@bot.slash_command(
+    name="ferme-a-fer", description="Affiche la liste des items pour la ferme à fer"
+)
+async def ferme_a_fer(ctx):
+    data = load_ferme_data()
+    checked_set = set()
+
+    await ctx.respond("Chargement...")
+    msg = await ctx.interaction.original_response()
+    msg_id = str(msg.id)
+    ferme_checked[msg_id] = checked_set
+
+    embed = build_ferme_embed(data, checked_set, msg_id)
+    view = FermeView(data, checked_set, msg_id)
+    await ctx.edit(content=None, embed=embed, view=view)
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
