@@ -13,7 +13,7 @@ from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 from keepAlive import keep_alive  # type: ignore
 import requests
 from groq import Groq  # type: ignore
-import minecraft_fr # type: ignore
+import minecraft_fr  # type: ignore
 
 keep_alive()
 
@@ -1060,52 +1060,75 @@ class FermeModal(discord.ui.Modal, title="Cocher/décocher un item"):
         label="Numéro de l'item", placeholder="Ex: 3", min_length=1, max_length=3
     )
 
-    def __init__(self, data, checked_set, msg_id, original_interaction):
+    def __init__(self, data, checked_set, msg_id):
         super().__init__()
         self.data = data
         self.checked_set = checked_set
         self.msg_id = msg_id
-        self.original_interaction = original_interaction
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
             index = int(self.numero.value) - 1
+
             if 0 <= index < len(self.data["items"]):
+
                 if index in self.checked_set:
                     self.checked_set.discard(index)
                 else:
                     self.checked_set.add(index)
+
                 ferme_checked[self.msg_id] = self.checked_set
-                embed = build_ferme_embed(self.data, self.checked_set, self.msg_id)
-                view = FermeView(self.data, self.checked_set, self.msg_id, interaction)
-                await self.original_interaction.edit_original_response(
-                    embed=embed, view=view
-                )
+
                 await interaction.response.defer()
+
+                message = await interaction.channel.fetch_message(
+                    int(self.msg_id)
+                )
+
+                embed = build_ferme_embed(
+                    self.data,
+                    self.checked_set,
+                    self.msg_id
+                )
+
+                view = FermeView(
+                    self.data,
+                    self.checked_set,
+                    self.msg_id
+                )
+
+                await message.edit(
+                    embed=embed,
+                    view=view
+                )
+
             else:
                 await interaction.response.send_message(
-                    "Numéro invalide.", ephemeral=True
+                    "Numéro invalide.",
+                    ephemeral=True
                 )
+
         except ValueError:
             await interaction.response.send_message(
-                "Entre un numéro valide.", ephemeral=True
+                "Entre un numéro valide.",
+                ephemeral=True
             )
 
 
 class FermeView(discord.ui.View):
-    def __init__(self, data, checked_set, msg_id, original_interaction):
+    def __init__(self, data, checked_set, msg_id):
         super().__init__(timeout=None)
         self.data = data
         self.checked_set = checked_set
         self.msg_id = msg_id
-        self.original_interaction = original_interaction
 
     @discord.ui.button(
-        label="✅ Cocher/Décocher un item", style=discord.ButtonStyle.primary
+        label="✅ Cocher/Décocher un item", 
+        style=discord.ButtonStyle.primary
     )
     async def cocher(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = FermeModal(
-            self.data, self.checked_set, self.msg_id, self.original_interaction
+            self.data, self.checked_set, self.msg_id
         )
         await interaction.response.send_modal(modal)
 
@@ -1113,6 +1136,7 @@ class FermeView(discord.ui.View):
     async def reset(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.checked_set.clear()
         ferme_checked[self.msg_id] = self.checked_set
+        
         embed = build_ferme_embed(self.data, self.checked_set, self.msg_id)
         await interaction.response.edit_message(embed=embed, view=self)
 
@@ -1130,7 +1154,7 @@ async def ferme_a_fer(interaction: discord.Interaction):
     ferme_checked[msg_id] = checked_set
 
     embed = build_ferme_embed(data, checked_set, msg_id)
-    view = FermeView(data, checked_set, msg_id, interaction)
+    view = FermeView(data, checked_set, msg_id)
     await interaction.edit_original_response(embed=embed, view=view)
 
 
