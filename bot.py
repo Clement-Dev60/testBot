@@ -1094,18 +1094,18 @@ class FermeView(discord.ui.View):
 @bot.tree.command(
     name="ferme-a-fer", description="Affiche la liste des items pour la ferme à fer"
 )
-async def ferme_a_fer(ctx):
+async def ferme_a_fer(interaction: discord.Interaction):
     data = load_ferme_data()
     checked_set = set()
 
-    await ctx.respond("Chargement...")
-    msg = await ctx.interaction.original_response()
+    await interaction.response.defer()
+    msg = await interaction.original_response()
     msg_id = str(msg.id)
     ferme_checked[msg_id] = checked_set
 
     embed = build_ferme_embed(data, checked_set, msg_id)
     view = FermeView(data, checked_set, msg_id)
-    await ctx.edit(content=None, embed=embed, view=view)
+    await interaction.edit_original_response(content=None, embed=embed, view=view)
 
 
 bot.run(os.getenv("DISCORD_TOKEN"))
