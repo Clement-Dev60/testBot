@@ -1060,12 +1060,11 @@ class BuildModal(discord.ui.Modal, title="Cocher/décocher un item"):
         label="Numéro de l'item", placeholder="Ex: 3", min_length=1, max_length=3
     )
 
-    def __init__(self, data, checked_set, msg_id, original_interaction):
+    def __init__(self, data, checked_set, msg_id):
         super().__init__()
         self.data = data
         self.checked_set = checked_set
         self.msg_id = msg_id
-        self.original_interaction = original_interaction
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
@@ -1078,12 +1077,9 @@ class BuildModal(discord.ui.Modal, title="Cocher/décocher un item"):
                 ferme_checked[self.msg_id] = self.checked_set
                 embed = build_ferme_embed(self.data, self.checked_set, self.msg_id)
                 view = BuildView(
-                    self.data, self.checked_set, self.msg_id, self.original_interaction
+                    self.data, self.checked_set, self.msg_id
                 )
-                await self.original_interaction.edit_original_response(
-                    embed=embed, view=view
-                )
-                await interaction.response.defer()
+                await interaction.response.edit_message(embed=embed, view=view)
             else:
                 await interaction.response.send_message(
                     "Numéro invalide.", ephemeral=True
@@ -1095,19 +1091,18 @@ class BuildModal(discord.ui.Modal, title="Cocher/décocher un item"):
 
 
 class BuildView(discord.ui.View):
-    def __init__(self, data, checked_set, msg_id, original_interaction):
+    def __init__(self, data, checked_set, msg_id):
         super().__init__(timeout=None)
         self.data = data
         self.checked_set = checked_set
         self.msg_id = msg_id
-        self.original_interaction = original_interaction
 
     @discord.ui.button(
         label="✅ Cocher/Décocher un item", style=discord.ButtonStyle.primary
     )
     async def cocher(self, interaction: discord.Interaction, button: discord.ui.Button):
         modal = BuildModal(
-            self.data, self.checked_set, self.msg_id, self.original_interaction
+            self.data, self.checked_set, self.msg_id
         )
         await interaction.response.send_modal(modal)
 
@@ -1147,7 +1142,7 @@ async def build_cmd(interaction: discord.Interaction, nom: str):
     ferme_checked[msg_id] = checked_set
 
     embed = build_ferme_embed(data, checked_set, msg_id)
-    view = BuildView(data, checked_set, msg_id, interaction)
+    view = BuildView(data, checked_set, msg_id)
     await interaction.edit_original_response(embed=embed, view=view)
 
 
