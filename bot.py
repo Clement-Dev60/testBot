@@ -13,7 +13,7 @@ from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 from keepAlive import keep_alive  # type: ignore
 import requests
 from groq import Groq  # type: ignore
-import minecraft_fr  # type: ignore
+from minecraft_fr import get_item_name_fr # type: ignore
 
 keep_alive()
 
@@ -1012,24 +1012,23 @@ async def check_free_games():
 
 # --- Commandes Minecraft --- #
 
-import json
-import os
-
-FERME_A_FER_FILE = "/var/www/testbot/ferme_a_fer.json"
+BUILDS_DIR = "/var/www/testbot/builds/"
 ferme_checked = {}
 
 
-def format_item_name(item_id):
-    name = minecraft_fr.get_item_name_fr(item_id)
-    return name
-
-
-def load_ferme_data():
-    with open(FERME_A_FER_FILE, "r", encoding="utf-8") as f:
+def load_build_data(build_name: str):
+    path = os.path.join(BUILDS_DIR, f"{build_name}.json")
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def build_ferme_embed(data, checked_set, message_id=None):
+def get_available_builds():
+    return [
+        f.replace(".json", "") for f in os.listdir(BUILDS_DIR) if f.endswith(".json")
+    ]
+
+
+def build_ferme_embed(data, checked_set, msg_id):
     lines = []
     for i, item in enumerate(data["items"]):
         stacks = item["count"] // 64
@@ -1040,95 +1039,75 @@ def build_ferme_embed(data, checked_set, message_id=None):
             qty = f"{stacks} stack(s)"
         else:
             qty = f"{reste}"
-
-        name = format_item_name(item["id"])
+        name = get_item_name_fr(item["id"])
         line = (
             f"~~{i+1}. {name} — {qty}~~"
             if i in checked_set
             else f"{i+1}. {name} — {qty}"
         )
         lines.append(line)
-
     embed = discord.Embed(
         title=f"🔨 {data['name']}", description="\n".join(lines), color=0xE67E22
     )
+    progress = len(checked_set)
+    total = len(data["items"])
+    embed.set_footer(text=f"Progression : {progress}/{total} items cochés")
     return embed
 
 
-class FermeModal(discord.ui.Modal, title="Cocher/décocher un item"):
+class BuildModal(discord.ui.Modal, title="Cocher/décocher un item"):
     numero = discord.ui.TextInput(
         label="Numéro de l'item", placeholder="Ex: 3", min_length=1, max_length=3
     )
 
-    def __init__(self, data, checked_set, msg_id):
+    def __init__(self, data, checked_set, msg_id, original_interaction):
         super().__init__()
         self.data = data
         self.checked_set = checked_set
         self.msg_id = msg_id
+        self.original_interaction = original_interaction
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
             index = int(self.numero.value) - 1
-
             if 0 <= index < len(self.data["items"]):
-
                 if index in self.checked_set:
                     self.checked_set.discard(index)
                 else:
                     self.checked_set.add(index)
-
                 ferme_checked[self.msg_id] = self.checked_set
-
+                embed = build_ferme_embed(self.data, self.checked_set, self.msg_id)
+                view = BuildView(
+                    self.data, self.checked_set, self.msg_id, self.original_interaction
+                )
+                await self.original_interaction.edit_original_response(
+                    embed=embed, view=view
+                )
                 await interaction.response.defer()
-
-                message = await interaction.channel.fetch_message(
-                    int(self.msg_id)
-                )
-
-                embed = build_ferme_embed(
-                    self.data,
-                    self.checked_set,
-                    self.msg_id
-                )
-
-                view = FermeView(
-                    self.data,
-                    self.checked_set,
-                    self.msg_id
-                )
-
-                await message.edit(
-                    embed=embed,
-                    view=view
-                )
-
             else:
                 await interaction.response.send_message(
-                    "Numéro invalide.",
-                    ephemeral=True
+                    "Numéro invalide.", ephemeral=True
                 )
-
         except ValueError:
             await interaction.response.send_message(
-                "Entre un numéro valide.",
-                ephemeral=True
+                "Entre un numéro valide.", ephemeral=True
             )
 
 
-class FermeView(discord.ui.View):
-    def __init__(self, data, checked_set, msg_id):
+class BuildView(discord.ui.View):
+    def __init__(self, data, checked_set, msg_id, original_interaction):
         super().__init__(timeout=None)
         self.data = data
         self.checked_set = checked_set
         self.msg_id = msg_id
+        self.original_interaction = original_interaction
 
     @discord.ui.button(
-        label="✅ Cocher/Décocher un item", 
-        style=discord.ButtonStyle.primary
+        label="✅ Cocher/Décocher un item", style=discord.ButtonStyle.primary
     )
     async def cocher(self, interaction: discord.Interaction, button: discord.ui.Button):
-        modal = FermeModal(
-            self.data, self.checked_set, self.msg_id
+        modal = BuildModal(
+            self.data, self.checked_set, self.msg_id, self.original_interaction
         )
         await interaction.response.send_modal(modal)
 
@@ -1136,25 +1115,39 @@ class FermeView(discord.ui.View):
     async def reset(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.checked_set.clear()
         ferme_checked[self.msg_id] = self.checked_set
-        
         embed = build_ferme_embed(self.data, self.checked_set, self.msg_id)
         await interaction.response.edit_message(embed=embed, view=self)
 
 
-@bot.tree.command(
-    name="ferme-a-fer", description="Affiche la liste des items pour la ferme à fer"
-)
-async def ferme_a_fer(interaction: discord.Interaction):
-    data = load_ferme_data()
-    checked_set = set()
+async def build_autocomplete(interaction: discord.Interaction, current: str):
+    builds = get_available_builds()
+    return [
+        discord.app_commands.Choice(name=b, value=b)
+        for b in builds
+        if current.lower() in b.lower()
+    ]
 
+
+@bot.tree.command(name="build", description="Affiche la liste des items pour un build")
+@discord.app_commands.describe(nom="Nom du build")
+@discord.app_commands.autocomplete(nom=build_autocomplete)
+async def build_cmd(interaction: discord.Interaction, nom: str):
+    try:
+        data = load_build_data(nom)
+    except FileNotFoundError:
+        await interaction.response.send_message(
+            f"Build `{nom}` introuvable.", ephemeral=True
+        )
+        return
+
+    checked_set = set()
     await interaction.response.defer()
     msg = await interaction.original_response()
     msg_id = str(msg.id)
     ferme_checked[msg_id] = checked_set
 
     embed = build_ferme_embed(data, checked_set, msg_id)
-    view = FermeView(data, checked_set, msg_id)
+    view = BuildView(data, checked_set, msg_id, interaction)
     await interaction.edit_original_response(embed=embed, view=view)
 
 
