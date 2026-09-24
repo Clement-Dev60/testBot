@@ -1145,5 +1145,42 @@ async def build_cmd(interaction: discord.Interaction, nom: str):
     view = BuildView(data, checked_set, msg_id)
     await interaction.edit_original_response(embed=embed, view=view)
 
+@bot.event
+async def on_voice_state_update(member, before, after):
+    WINOKA_ID = os.getenv('WINOKA_ID')
+    BULLE_JOB_ID = os.getenv('BULLE_JOB_ID')
+    if member.id != WINOKA_ID:
+        return
+
+    try:
+        if (
+            after.channel is not None
+            and after.channel.id == BULLE_JOB_ID
+            and (before.channel is None or before.channel.id != BULLE_JOB_ID)
+        ):
+            await member.edit(
+                mute=True,
+                reason="Entrée dans La Bulle Job"
+            )
+
+        elif (
+            before.channel is not None
+            and before.channel.id == BULLE_JOB_ID
+            and (after.channel is None or after.channel.id != BULLE_JOB_ID)
+        ):
+            await member.edit(
+                mute=False,
+                reason="Sortie de La Bulle Job"
+            )
+
+    except discord.Forbidden:
+        print("❌ BatBot n'a pas la permission de mute/démute Winoka.")
+
+    except discord.HTTPException as error:
+        print(f"❌ Erreur Discord lors du mute de Winoka : {error}")
+
+    except Exception as error:
+        print(f"❌ Erreur La Bulle Job : {error}")
+
 
 bot.run(os.getenv("DISCORD_TOKEN"))
