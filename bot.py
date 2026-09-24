@@ -1147,8 +1147,8 @@ async def build_cmd(interaction: discord.Interaction, nom: str):
 
 @bot.event
 async def on_voice_state_update(member, before, after):
-    WINOKA_ID = os.getenv('WINOKA')
-    BULLE_JOB_ID = os.getenv('BULLE_JOB')
+    WINOKA_ID = int(os.getenv('WINOKA'))
+    BULLE_JOB_ID = int(os.getenv('BULLE_JOB'))
     if member.id != WINOKA_ID:
         return
 
