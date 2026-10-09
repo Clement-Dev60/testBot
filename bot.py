@@ -23,6 +23,7 @@ print("Lancement du bot...")
 
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 intents = discord.Intents.default()
+intents.voice_states = True
 intents.members = True
 blagues = BlaguesAPI(os.getenv("BLAGUES_API_TOKEN"))
 
@@ -247,7 +248,7 @@ async def on_message(message: discord.Message):
         async with message.channel.typing():
             try:
                 response = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="meta-llama/llama-4-scout-17b-16e-instruct",
                     messages=[
                         {"role": "system", "content": prompt_dynamique},
                         {"role": "user", "content": content},
