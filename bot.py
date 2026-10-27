@@ -13,7 +13,7 @@ from blagues_api import BlaguesAPI, BlagueType  # type: ignore
 from keepAlive import keep_alive  # type: ignore
 import requests
 from groq import Groq  # type: ignore
-from minecraft_fr import get_item_name_fr # type: ignore
+from minecraft_fr import get_item_name_fr  # type: ignore
 
 keep_alive()
 
@@ -788,7 +788,7 @@ async def delete_twitch_messages():
 last_live_state = None
 
 
-@tasks.loop(seconds=30)
+@tasks.loop(seconds=30, reconnect=True)
 async def check_twitch():
     global last_live_state
     global twitch_live_message, twitch_offline_message
@@ -840,6 +840,11 @@ async def check_twitch():
 
     last_live_state = is_currently_live
     print(f"[TWITCH] last_state mis à jour -> {last_live_state}")
+
+
+@check_twitch.error
+async def check_twitch_error(error):
+    print(f"[TWITCH] Erreur dans check_twitch : {error}")
 
 
 # --- Jeux gratuits ---
@@ -1077,9 +1082,7 @@ class BuildModal(discord.ui.Modal, title="Cocher/décocher un item"):
                     self.checked_set.add(index)
                 ferme_checked[self.msg_id] = self.checked_set
                 embed = build_ferme_embed(self.data, self.checked_set, self.msg_id)
-                view = BuildView(
-                    self.data, self.checked_set, self.msg_id
-                )
+                view = BuildView(self.data, self.checked_set, self.msg_id)
                 await interaction.response.edit_message(embed=embed, view=view)
             else:
                 await interaction.response.send_message(
@@ -1102,9 +1105,7 @@ class BuildView(discord.ui.View):
         label="✅ Cocher/Décocher un item", style=discord.ButtonStyle.primary
     )
     async def cocher(self, interaction: discord.Interaction, button: discord.ui.Button):
-        modal = BuildModal(
-            self.data, self.checked_set, self.msg_id
-        )
+        modal = BuildModal(self.data, self.checked_set, self.msg_id)
         await interaction.response.send_modal(modal)
 
     @discord.ui.button(label="🔄 Réinitialiser", style=discord.ButtonStyle.danger)
@@ -1146,10 +1147,11 @@ async def build_cmd(interaction: discord.Interaction, nom: str):
     view = BuildView(data, checked_set, msg_id)
     await interaction.edit_original_response(embed=embed, view=view)
 
+
 @bot.event
 async def on_voice_state_update(member, before, after):
-    WINOKA_ID = int(os.getenv('WINOKA'))
-    BULLE_JOB_ID = int(os.getenv('BULLE_JOB'))
+    WINOKA_ID = int(os.getenv("WINOKA"))
+    BULLE_JOB_ID = int(os.getenv("BULLE_JOB"))
     if member.id != WINOKA_ID:
         return
 
@@ -1159,20 +1161,14 @@ async def on_voice_state_update(member, before, after):
             and after.channel.id == BULLE_JOB_ID
             and (before.channel is None or before.channel.id != BULLE_JOB_ID)
         ):
-            await member.edit(
-                mute=True,
-                reason="Entrée dans La Bulle Job"
-            )
+            await member.edit(mute=True, reason="Entrée dans La Bulle Job")
 
         elif (
             before.channel is not None
             and before.channel.id == BULLE_JOB_ID
             and (after.channel is None or after.channel.id != BULLE_JOB_ID)
         ):
-            await member.edit(
-                mute=False,
-                reason="Sortie de La Bulle Job"
-            )
+            await member.edit(mute=False, reason="Sortie de La Bulle Job")
 
     except discord.Forbidden:
         print("❌ BatBot n'a pas la permission de mute/démute Winoka.")
